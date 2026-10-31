@@ -1,0 +1,13 @@
+import { mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { build } from 'esbuild';
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url || '') || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(key || '')) throw new Error('Hosted build requires a Supabase URL and publishable key. Secret keys are never accepted.');
+rmSync('dist', { recursive: true, force: true });
+mkdirSync('dist/api', { recursive: true });
+const html = readFileSync('src/web/index.html', 'utf8').replace('<script src="/client.js" defer>', '<script type="module" src="/client.js">').replace('Live account and GitHub services still require setup; hosted scanning is not yet available.', 'Email accounts are available. GitHub connection and hosted scanning are not yet available.');
+writeFileSync('dist/index.html', html);
+copyFileSync('src/web/style.css', 'dist/style.css');
+await build({ entryPoints: ['src/hosted-client.js'], outfile: 'dist/client.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: ['es2022'], define: { SUPABASE_URL: JSON.stringify(url), SUPABASE_PUBLISHABLE_KEY: JSON.stringify(key) } });
+const githubReady = ['GITHUB_APP_ID','GITHUB_APP_SLUG','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET','GITHUB_TOKEN_ENCRYPTION_KEY'].every(name => !!process.env[name]);
+writeFileSync('dist/api/config.json', JSON.stringify({ authReady: true, githubReady, scanningReady: false, billingReady: false, detailsRequirePayment: true, emailLinks: true }));

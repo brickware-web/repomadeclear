@@ -1,0 +1,21 @@
+{
+  "name": "repo-made-clear",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "scan": "node src/cli.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "build": "node scripts/build-hosted.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "esbuild": "0.28.2",
+    "jose": "6.2.14",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
