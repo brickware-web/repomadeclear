@@ -1,5 +1,7 @@
 const $ = id => document.getElementById(id);
-let mode = 'login', config, session;
+let mode = 'login', config, session, verifiedSelection = false, scanning = false;
+function resetScan() { if($('billing-controls'))$('billing-controls').hidden=true; verifiedSelection=false; $('scan').disabled=true; $('scan-result').hidden=true; }
+
 const say = text => { $('notice').textContent = text; };
 async function api(route, data) {
   if (globalThis.rmcHostedRequest) return globalThis.rmcHostedRequest(route, data);
@@ -27,6 +29,7 @@ function choices(element, rows, placeholder, value, label) {
   element.disabled = rows.length === 0;
 }
 async function installations() {
+  resetScan();
   const data = await api('/api/github/installations');
   $('install').href = data.installURL;
   choices($('installation'), data.installations, 'Choose an installation', i => i.id, i => i.account);
@@ -77,6 +80,7 @@ $('connect').onclick = act(async () => { const data = await api('/api/github/con
 $('disconnect').onclick = act(async () => { await api('/api/github/disconnect', {}); say('Your saved connection is cleared. You can also revoke the App in GitHub settings.'); await refresh(); });
 $('refresh').onclick = act(installations);
 $('installation').onchange = act(async () => {
+  resetScan();
   choices($('repository'), [], 'Choose a repository', r => r.id, r => r.name); choices($('branch'), [], 'Choose a branch', b => b.name, b => b.name); $('select').disabled = true;
   if (!$('installation').value) return;
   const data = await api('/api/github/repositories?installation=' + encodeURIComponent($('installation').value));
@@ -84,12 +88,38 @@ $('installation').onchange = act(async () => {
 });
 const selectionQuery = () => new URLSearchParams({ installation: $('installation').value, repository: $('repository').value });
 $('repository').onchange = act(async () => {
+  resetScan();
   choices($('branch'), [], 'Choose a branch', b => b.name, b => b.name); $('select').disabled = true;
   if (!$('repository').value) return;
-  const data = await api('/api/github/branches?' + selectionQuery()); choices($('branch'), data.branches, 'Choose a branch', b => b.name, b => b.name);
+  const data = await api('/api/github/branches?' + selectionQuery()); choices($('branch'), data.branches, 'Choose a branch', b => b.name, b => b.name); if (!data.branches.length) say('This repository has no branches yet. Push your first commit to GitHub, then choose it again.');
 });
-$('branch').onchange = () => { $('select').disabled = !$('branch').value; };
-$('select').onclick = act(async () => { const data = await api('/api/github/select?' + selectionQuery(), { branch: $('branch').value }); $('selection').textContent = data.message; say('Repository and branch verified. No code has been scanned yet.'); });
+$('branch').onchange = () => { resetScan(); $('select').disabled = !$('branch').value; };
+$('select').onclick = act(async () => { const data = await api('/api/github/select?' + selectionQuery(), { branch: $('branch').value }); $('selection').textContent = data.message; verifiedSelection=true; $('billing-controls').hidden=false; $('scan').disabled=!$('scan-consent').checked; say('Repository and branch verified. Review the coverage and create your free overview.'); });
 (async () => { try { config = await api('/api/config'); route(); await refresh(); say(globalThis.rmcAuthCallbackError || (session.recovery ? 'Email verified. Choose your new password.' : session.signedIn ? 'You are signed in.' : !config.authReady ? 'Account service setup is needed before you can register. No account has been created.' : !config.githubReady ? 'Email accounts are configured. GitHub service setup is still needed.' : 'Create an account or sign in to begin.')); if (config.emailLinks) document.querySelector('[data-mode="verify"]').hidden = true; } catch (error) { say(error.message); } })();
 
 window.addEventListener('rmc-auth-changed', act(refresh));
+
+$('scan-consent').onchange=()=>{$('scan').disabled=scanning||!verifiedSelection||!$('scan-consent').checked;};
+$('scan').onclick=act(async()=>{
+ if(scanning||!verifiedSelection||!$('scan-consent').checked)return;
+ scanning=true; $('scan').disabled=true; $('scan').textContent='Scanning committed source…'; say('Reading supported source files. This may take up to a minute.');
+ try {
+  const {overview:o,cached}=await api('/api/github/scan?'+selectionQuery(),{branch:$('branch').value,consent:true});
+  $('scan-meta').textContent=`${o.repository} · ${o.branch} · ${o.commit.slice(0,12)} · ${new Date(o.scannedAt).toLocaleString()}${cached?' · Saved scan':''}`;
+  const root=$('real-map');root.replaceChildren();
+  const ns='http://www.w3.org/2000/svg', svg=document.createElementNS(ns,'svg');
+  const width=900,height=Math.max(240,o.groups.length*100);svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','Source groups and detected import connections');
+  const defs=document.createElementNS(ns,'defs'),marker=document.createElementNS(ns,'marker'),tip=document.createElementNS(ns,'path'); for(const [k,v] of Object.entries({id:'map-arrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'}))marker.setAttribute(k,v);tip.setAttribute('d','M 0 0 L 10 5 L 0 10 z');tip.setAttribute('fill','#777');marker.append(tip);defs.append(marker);svg.append(defs);
+  const positions=new Map(o.groups.map((g,i)=>[g.id,{x:40+(i%2)*440,y:30+i*95}]));
+  for(const link of o.connections){const a=positions.get(link.source),b=positions.get(link.target);const line=document.createElementNS(ns,'path');line.setAttribute('d',`M ${a.x+170} ${a.y+62} C 450 ${a.y+80},450 ${b.y-20},${b.x+170} ${b.y}`);line.setAttribute('class','map-link');line.setAttribute('marker-end','url(#map-arrow)');svg.append(line);}
+  for(const g of o.groups){const a=positions.get(g.id);const rect=document.createElementNS(ns,'rect');for(const [k,v] of Object.entries({x:a.x,y:a.y,width:340,height:62,rx:10}))rect.setAttribute(k,v);rect.setAttribute('class','map-node');svg.append(rect);const text=document.createElementNS(ns,'text');text.setAttribute('x',a.x+16);text.setAttribute('y',a.y+26);text.textContent=g.label.length>38?g.label.slice(0,35)+'…':g.label;svg.append(text);const count=document.createElementNS(ns,'text');count.setAttribute('x',a.x+16);count.setAttribute('y',a.y+47);count.setAttribute('class','map-count');count.textContent=`${g.count} ${g.label==='External packages'?'package references':'source files'}`;svg.append(count);}
+  root.append(svg);
+  const list=document.createElement('ul');for(const link of o.connections){const item=document.createElement('li');item.textContent=`${o.groups.find(g=>g.id===link.source).label} → ${o.groups.find(g=>g.id===link.target).label}: ${link.count} source references`;list.append(item);}root.append(list);
+  $('scan-coverage').textContent=`${o.coverage.scannedFiles} files scanned; ${o.coverage.omittedFiles} omitted; ${o.coverage.unresolvedReferences} unresolved references; ${o.coverage.omittedCalls} calls omitted. Connections show source references, not execution order. `+o.coverage.gaps.join(' ');
+  $('scan-result').hidden=false; say(cached?'Saved overview loaded.':'Real repository scan complete.');$('scan-result').scrollIntoView({behavior:'smooth'});
+ } finally {scanning=false;$('scan').textContent='Scan repository';$('scan').disabled=!verifiedSelection||!$('scan-consent').checked;}
+});
+
+$('checkout').onclick=act(async()=>{const result=await api('/api/github/checkout?'+selectionQuery(),{});location.assign(result.url);});
+$('manage-billing').onclick=act(async()=>{const result=await api('/api/github/portal?'+selectionQuery(),{});location.assign(result.url);});
+$('open-workspace').onclick=act(async()=>{const result=await api('/api/github/billing-status?'+selectionQuery(),{});if(!result.paid)throw new Error('No verified paid subscription for this repository yet.');location.assign('/workspace.html?'+selectionQuery());});

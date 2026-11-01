@@ -2,11 +2,12 @@ node_modules
 .env*
 dist
 test
-src/scanner.js
 src/cli.js
 src/map.js
 src/map.css
 src/editor-client.js
-src/overlays.js
 src/server.js
 scripts/scan-self.js
+
+dev/
+scripts/preview-diagram.js

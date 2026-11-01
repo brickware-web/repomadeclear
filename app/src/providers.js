@@ -45,6 +45,7 @@ export function providers(config, fetcher = fetch) {
     logout: token => auth('logout', {}, token),
     exchange: (code, verifier) => request('https://github.com/login/oauth/access_token', { method: 'POST', body: { client_id: config.githubClientId, client_secret: config.githubSecret, code, code_verifier: verifier, redirect_uri: config.githubCallback || `${config.origin}/api/github/callback` } }),
     installations, repositories,
+    githubRead: gh,
     async branches(token, installation, repository) {
       const repo = (await repositories(token, installation)).find(r => String(r.id) === String(repository));
       if (!repo) throw new HttpError(403, 'Repository access is unavailable.');

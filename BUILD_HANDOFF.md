@@ -1,4 +1,77 @@
-# Build handoff — 2026-10-30
+# Build handoff — 2026-10-31
+
+## Component explanations and navigation — October 31
+Improved shared paid workspace: searchable components; What it does / Connections / Source evidence panels; incoming/outgoing navigation with previous-component action; clickable arrow explanation, type-reference distinction, exact repository/branch/commit/file/line evidence and validated commit-specific GitHub links. Human explanations remain labeled and corrected connections retain a disclosure of original evidence. Added inferred roles for billing/workspace modules; these remain filename/structure suggestions, not semantic/runtime proof. Fixed node dragging pointer capture intercepting ordinary component clicks. Human arrows dashed; no active-arrow flow animation implying runtime traffic.
+
+49 tests pass, including evidence URL validation, human provenance/type-reference wording, existing unpaid isolation. Browser verified component click, connection panel, relationship evidence, and search using actual working-copy snapshot (26 source files, 8 areas, 64 references). Local preview now uses same workspace renderer, loopback-only on http://127.0.0.1:4176; npm run preview:diagram from app, local overlays memory-only until reload. Dependencies installed from lockfile with scripts disabled. Active preview session22512. Proof /private/tmp/rmc-component-explanation.png. Existing sites/clearbrief and old dev/diagram-preview assets preserved.
+
+Deployed protected workspace as dpl_4ESrxrC6D1SH8mDRHgA7ckXcvH4C, https://repomadeclear-pc8wt7kzs-brickware-webs-projects.vercel.app aliased www.repomadeclear.com. Server entitlement checks unchanged; free overview remains static. No real live paid account exists, so production post-payment end-to-end remains unverified (do not assume Stripe live cycle complete). Display name in Stripe separately updated to RepoMadeClear, legal entity remains Brickware LLC.
+
+
+## Live checkout enabled — October 31
+Owner confirmed live Stripe secret and webhook signing secret saved in Vercel. Migration004 applied successfully in dedicated Supabase project; SQL verified row security=true and authenticated SELECT/INSERT/function EXECUTE=false. BILLING_MODE=live set in Production. Latest deployment dpl_HCQtb9DXLUQ55miU4cXLMC8fkgoa at https://www.repomadeclear.com (repomadeclear-ft881jygs-brickware-webs-projects.vercel.app). Live disclosures corrected: USD49/month/one repository, end-of-period cancellation, no additional rescans yet; removed obsolete no-payments preview wording. Build script saved canonical and staging.
+
+Browser verified: authenticated user reconnected existing selected GitHub installation; selected repository1440351661/main. Open interactive map denied with 'No verified paid subscription for this repository yet' despite old sandbox payment. Subscribe opened actual cs_live Checkout with Repo Made Clear One repository, USD49/month and accurate cancellation/usage terms. Checkout creation also checks charges_enabled and valid end-of-period portal configuration server-side. No payment submitted. Manage billing opened live Stripe portal successfully (no payment method or invoices). Proof /private/tmp/rmc-live-checkout.png. Existing test-mode paid map/edit persistence was verified earlier; no live paid account exists, so live post-payment unlock/cancellation/refund lifecycle not end-to-end verified. Signed handler tests pass, but actual live webhook delivery/signing-secret correctness not yet verified. Open checkout will eventually expire and should generate checkout.session.expired; inspect destination we_1UWgxQ53WVhOEdrZZr6AJ4YR deliveries. Do not describe real purchase as tested. All46 automated tests passed before deployment; last change only pricing disclosures.
+
+
+## Live Stripe setup — October 31, credentials pending
+User completed Stripe activation and requested continuing live setup. Created live product prod_VXmUubl9gbugBL, USD49/month price price_1UWgvO53WVhOEdrZ5i5gaCoQ in existing authorized account acct_1SqqDq53WVhOEdrZ. Created portal configuration bpc_1UWgw253WVhOEdrZ3IaZkhSe: cancellation enabled at period end, subscription changes disabled, return to https://www.repomadeclear.com/#login. Created webhook we_1UWgxQ53WVhOEdrZZr6AJ4YR at https://www.repomadeclear.com/api/stripe-webhook, 12 checkout/invoice/subscription/refund/dispute events, snapshot API 2025-12-15.clover. Signing secret not retrieved. Screenshot /private/tmp/rmc-live-plan.png and /private/tmp/rmc-live-webhook.png.
+
+Updated Vercel Production STRIPE_PRICE_ID to live price and added STRIPE_PORTAL_CONFIGURATION_ID. Existing deployment unchanged. Owner asked to replace STRIPE_SECRET_KEY with live key and add STRIPE_WEBHOOK_SECRET directly in Vercel; waiting for confirmation. BILLING_MODE not yet set live. Migration004 NOT applied. Do not deploy before migration and credentials are ready. Re-ran all 46 tests successfully. Remaining: migration004, key configuration, live flag, deployment, live checkout/portal and webhook delivery verification without charging. No real payment made; activation UI alone does not prove charges_enabled API status.
+
+
+## Live-payment activation — prepared, not deployed
+User explicitly requested live customer billing. Stripe email admin@brickware.ai verified; live account acct_1SqqDq53WVhOEdrZ still requires business onboarding (business type/details, account security, review/submit). Owner is completing the required form. Sandbox account remains acct_1SqqE35bzoAu3CdG. Do not claim live charges enabled.
+
+Prepared migration004 rmc_billing_accounts with separate test/live rows and owner-token-protected checkout lease; migration NOT applied. Working code uses this table, so apply migration before deploying. Test customer records copied by migration without removing originals. Checkout checks live account charges_enabled and cancel-at-period-end portal configuration; blocks duplicate subscriptions/concurrent checkout, recovers orphaned open sessions, requires the user's repository scan before charging. Customer billing portal no longer requires a GitHub connection; authenticated caller identity remains verified and rate limited.
+
+Live mode requires BILLING_MODE=live, live STRIPE_SECRET_KEY, live STRIPE_PRICE_ID, STRIPE_PORTAL_CONFIGURATION_ID and STRIPE_WEBHOOK_SECRET. Sandbox remains restricted otherwise. None of these live values configured yet. Live product/portal/webhook must be created after Stripe business activation; owner enters new secrets directly in Vercel. Current production remains prior successful sandbox deployment dpl_DMGWzLnWULRCYuufBLvAGV8T74fA.
+
+46 tests and live-mode browser bundle build pass. Added actual webhook handler tests for signed duplicate delivery, test/live mismatch, invalid signature and storage retry; events audit only, protected access rechecks current Stripe payment state. Test/live account isolation and concurrent checkout lock tests pass. Remaining: apply migration004, configure live Stripe, validate portal and signed delivery, deploy, verify live checkout terms without creating an unauthorized charge. Source saved in VS Code; staging /private/tmp/rmc-payment-work.
+
+
+## Sandbox checkout and protected map — verified
+USD49 monthly sandbox checkout succeeded using Stripe test card and synthetic billing identity. No real charge. Verified live at www.repomadeclear.com: unpaid account denied, paid source map returned (16 source files, 7 presentation areas, 33 references), component explanations and exact evidence accessible. Saved scanner explanation as a human overlay; reload preserved it and original evidence. Authenticated test user kyky0112@gmail.com only; all other users and live Stripe keys are rejected by the sandbox gate. No owner entitlement bypass.
+
+42 automated tests passed, including actual paid-map data isolation/unpaid rejection and deterministic checkout retry parameters. Fixed changing expiration under the same Stripe idempotency key; removed payment_method_types rejected by Stripe API 2026-10-28.endive. Payment methods now follow Stripe dashboard. Final code redirects successful new checkouts directly to protected workspace; redirect never grants entitlement.
+
+Migration003 applied and SQL confirmed RLS and blocked direct authenticated reads/writes on all three tables. Production secrets remain inside Vercel; env pull returns placeholders. Sandbox price and test-email restriction configured. Webhook secret/destination and cancellation portal not configured or end-to-end tested. Live charges still disabled; before launch separate test/live customer records, set live product/key, configure portal/webhook, verify cancellation/refund lifecycle, and disclose final usage terms. Four-rescan plan recommendation is not implemented. Test workspace https://www.repomadeclear.com/workspace.html?installation=177088622&repository=1440351661 . Screenshot /private/tmp/rmc-paid-map-tested.png .
+
+
+## Sandbox payment integration in progress
+Migration 003 applied; RLS and blocked authenticated direct reads/writes verified for billing, overlays, payment events. User saved Stripe and service-role keys in Vercel. STRIPE_PRICE_ID and BILLING_TEST_EMAIL configured. Deployment dpl_9jF4FD8mosoPgJhf2jwmnhdFb6dr is test-only: all billing/protected actions require the verified test email and a test Stripe key. Live keys rejected. No real charges permitted. Sandbox checkout end-to-end still being validated; webhook secret and portal configuration outstanding.
+
+
+## Payments — implementation prepared, integration NOT activated
+
+User chose USD49/month per repository, monthly only, as pilot price. Four rescans/month and other pasted recommendations are not implemented promises. User selected existing Stripe. Native Chrome account is Brickware AI SANDBOX acct_1SqqE35bzoAu3CdG. Created test product prod_VXY1Sj78ROWe84 and monthly USD4900 price price_1UWSvh5bzoAu3CdGttqv96C5. No live product or charges.
+
+Working copy adds official Stripe SDK, checkout bound to verified user and repository, customer idempotency, duplicate-subscription checks, price validation, billing portal link. Current Stripe subscription, paid invoice and charge are verified on every protected request; canceled/expired/unpaid/wrong-price/refunded/disputed/test-live mismatch fail closed. Signed webhook validates raw body and deduplicates event audit; events never independently grant access. Existing connection rate limit applies.
+
+Paid details/edit endpoints revalidate repository membership, fetch only the user-owned encrypted scan, enforce repository binding, validate human overlay operations with existing engine, save separate encrypted overlays with optimistic version checks and server author/time. Hosted workspace renderer uses protected scan data, supports component explanations, evidence, group drilldown, tour, notes, added components/connections, reconnection, position saves and SVG export. No owner bypass. Local design preview preserved.
+
+39 automated tests and hosted build passed in /private/tmp/rmc-payment-work. Not deployed, migration 003_billing.sql NOT applied, Stripe sandbox end-to-end checkout/editor NOT tested. Required server configuration: STRIPE_SECRET_KEY (sandbox first), STRIPE_PRICE_ID above, STRIPE_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY. Secrets must be entered directly in environment settings, not chat. Configure portal cancel-at-period-end and test return/failed/canceled/refund flows before live activation. No payment collection should launch until paid editing is verified. Current production remains previous free scan/overview.
+
+
+## Interactive diagram design — local only
+
+User selected LOCAL development preview until payments are ready; do not grant an owner entitlement or publish protected component data. Reference: Eraser-like muted nested groups, Mermaid-like source relationships, right panel plus drill-down, guided highlighting now, layperson explanations.
+
+Implemented app/dev/diagram-preview (HTML/CSS/JS) and npm run preview:diagram. Local-only loopback server on 4175, fixed asset allowlist and host checks, creates isolated Git snapshot of current application source without executing it. Snapshot is explicitly local working-copy, not published GitHub main. No credentials or source snippets in served scan findings. Current preview: 17 source files, 7 presentation groups, 38 source references. Suggested component roles are inferred from file names/project structure and labeled; source relationships and evidence remain unchanged.
+
+Features verified in browser: clickable node explanation/evidence panel, group drill-down, eight-step guided source-reference tour with play/pause/next/back and faded unrelated components; zoom/fit/pan controls implemented. Model checks passed for unchanged edges, complete group membership, preserved commit evidence. SVG labels use textContent. Readiness: design preview, not a paid product; editing/export/payment integration not added in this milestone. Live site unchanged. Run npm run preview:diagram in app/ to restart after closing the current temporary preview process.
+
+
+## Live repository overview scan — completed
+
+User requested live scanning and real map. Hosted /api/github scan action now revalidates Supabase identity, GitHub selected installation/repository and branch on every scan/cache read. GitHub tree/blob API reads committed source without executing code. Shared scanner supports explicit JS/TS ES imports only. Caps: 500 tree entries, 5 MB total, 80 source files, 200 KB each, 2,000 edges, 40-second acquisition deadline plus 8-second parse budget. Four concurrent blob reads; no AI calls.
+
+Migration 002_scans.sql applied live. RLS enabled; direct authenticated table access and anonymous RPC blocked, verified true via SQL. Per-user locked RPC enforces one saved free scan, unchanged-commit cache, three attempts/day, two-minute claim. Full immutable findings are user-bound JWE ciphertext; free API emits folder groups/counts and grouped links only, no component explanations, file evidence or source snippets. Paid plans/details/editing/export/rescans are not implemented and remain unavailable. Preview terms disclosed before scan.
+
+Live real scan succeeded for brickware-web/repomadeclear main at commit 8f0b66072cd27d1c446abf35c2a435c6ff9fb0bd: 16 source files, 29 omitted tree entries, 5 groups, 4 grouped links; zero unresolved references and omitted calls. Scan timestamp displayed 2026-10-30 19:56 Phoenix. 34 tests passed, hosted build passed. Evidence isolation/cache/limits tests use doubles; database policy checks and first live scan verified separately. Synchronous bounded preview scan, not a background worker. Source saved in canonical VS Code app. Previous original Site preserved.
+
+Limitations: no live payment/entitlement service, no changed-commit rescan, no hosted overlays, no scan deletion UI or retention automation, no external-customer pilot validation. Existing Github user tokens require reconnection after expiry. Changes deployed by CLI; GitHub auto-deploy remains disconnected.
+
 
 ## Repository boundary repair and live GitHub validation
 

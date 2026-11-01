@@ -1,3 +1,6 @@
+import {billing} from './billing.js';
+import {paidMap} from './paid-map.js';
+import { runHostedScan } from './hosted-scan.js';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { providers, HttpError } from './providers.js';
 import { githubStore, credentialVault } from './github-store.js';
@@ -5,6 +8,14 @@ const random = () => randomBytes(32).toString('base64url');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = (status,message) => { throw new HttpError(status,message); };
 const opaque = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+function checkBilling(config,user){
+        if(config.billingMode==='live'){
+          if(!/^(sk|rk)_live_/.test(config.stripeKey||'')||!config.stripeWebhookSecret||!config.stripePortal)fail(503,'Live payments are still being configured.');
+        }else{
+          if(!config.billingTestEmail || user.email?.toLowerCase()!==config.billingTestEmail.toLowerCase())fail(503,'Payments are being tested and are not open yet.');
+          if(!/^(sk|rk)_test_/.test(config.stripeKey||''))fail(503,'Sandbox billing requires a test key. No charge was created.');
+        }
+}
 export function githubHandler(config, dependencies = {}) {
   const origins = config.origins || ['https://www.repomadeclear.com','https://repomadeclear.vercel.app'];
   const ready = !!(config.githubAppId && config.githubSlug && config.githubClientId && config.githubSecret && config.encryptionKey);
@@ -27,6 +38,7 @@ export function githubHandler(config, dependencies = {}) {
       const service=dependencies.service || providers({...config,origin,githubCallback:`${origin}/github/callback`});
       const user=await service.user(token);
       if(!user.id || !user.email_confirmed_at) fail(401,'Verify your email and sign in again.');
+      if(body.action==='portal'){checkBilling(config,user);const quota=dependencies.store?dependencies.store(user.id):githubStore(config,token);await quota('read');return json(200,await billing({...config,origin}).portal(user.id));}
       if(body.action==='status' && !ready) return json(200,{githubReady:false,githubConnected:false});
       if(!ready) fail(503,'GitHub connection is awaiting service setup.');
       const store=dependencies.store ? dependencies.store(user.id) : githubStore(config,token);
@@ -66,13 +78,29 @@ export function githubHandler(config, dependencies = {}) {
       if(!/^\d{1,20}$/.test(String(body.installation||''))) fail(400,'Choose an installation.');
       if(body.action==='repositories') return json(200,{repositories:(await service.repositories(connection.token,body.installation)).map(r=>({id:r.id,name:r.full_name,defaultBranch:r.default_branch}))});
       if(!/^\d{1,20}$/.test(String(body.repository||''))) fail(400,'Choose a repository.');
+      if(['billing-status','checkout','portal','details','edit'].includes(body.action)) {
+        const repository=(await service.repositories(connection.token,body.installation)).find(r=>String(r.id)===String(body.repository));
+        if(!repository)fail(403,'Repository access is unavailable.');
+        checkBilling(config,user);
+        const paymentConfig={...config,origin};
+        if(body.action==='details'||body.action==='edit')return json(200,await paidMap({config:paymentConfig,user,repository,body}));
+        const payment=billing(paymentConfig);
+        if(body.action==='billing-status')return json(200,await payment.paid(user.id,repository.id));
+        if(body.action==='portal')return json(200,await payment.portal(user.id));
+        const {data:preview,error:previewError}=await payment.db.from('rmc_scans').select('envelope').eq('user_id',user.id).maybeSingle();
+        if(previewError||!preview?.envelope)fail(409,'Create and review your free overview before subscribing.');
+        const findings=await vault.open(preview.envelope,user.id,'scan');
+        if(findings.scan.repository!==repository.full_name)fail(409,'Create an overview of this repository before subscribing.');
+        return json(200,await payment.checkout(user,repository.id,body.installation));
+      }
+      if(body.action==='scan') return json(200,await runHostedScan({config,token,user:user.id,service,githubToken:connection.token,body}));
       if(!['branches','select'].includes(body.action)) fail(404,'Not found.');
       const branches=await service.branches(connection.token,body.installation,body.repository);
       if(body.action==='branches') return json(200,{branches:branches.map(b=>({name:b.name,commit:b.commit.sha}))});
       const branch=branches.find(b=>b.name===body.branch);
       if(!branch) fail(403,'Branch is no longer accessible.');
       await store('select',{selection:{installation:String(body.installation),repository:String(body.repository),branch:branch.name,commit:branch.commit.sha,selectedAt:new Date().toISOString()}});
-      return json(200,{selected:true,message:'Repository and branch verified. Hosted scanning is the next step; no scan has run.'});
-    } catch(error) { return json(error instanceof HttpError?error.status:500,{error:error instanceof HttpError?error.message:'The connection request could not be completed.'}); }
+      return json(200,{selected:true,message:'Repository and branch verified. Review scan coverage below, then create your overview.'});
+    } catch(error) { if(!(error instanceof HttpError))console.error('request_failure',JSON.stringify({type:error?.type||error?.name,code:error?.code,param:error?.param,statusCode:error?.statusCode})); return json(error instanceof HttpError?error.status:500,{error:error instanceof HttpError?error.message:'The connection request could not be completed.'}); }
   };
 }

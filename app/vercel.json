@@ -36,5 +36,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/github.js": {
+      "maxDuration": 60
+    }
+  }
 }

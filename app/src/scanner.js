@@ -6,8 +6,8 @@ import ts from 'typescript';
 export const VERSION = '0.2.0';
 export const LIMITS = Object.freeze({ files: 2000, bytes: 20_000_000, fileBytes: 500_000, milliseconds: 15000, edges: 10000 });
 const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
-const excluded = /(^|\/)(node_modules|vendor|dist|build|\.next|\.git|coverage|test|tests|__tests__|fixtures)(\/|$)|(^|\/)\.env|\.(test|spec|d)\.[cm]?[jt]sx?$|(?:secret|credential|private[-_]?key)/i;
-const safeName = s => /^[\w@./+ -]+$/.test(s) && !s.includes('..');
+export const excluded = /(^|\/)(node_modules|vendor|dist|build|\.next|\.git|coverage|test|tests|__tests__|fixtures)(\/|$)|(^|\/)\.env|\.(test|spec|d)\.[cm]?[jt]sx?$|(?:secret|credential|private[-_]?key)/i;
+export const safeName = s => /^[\w@./+ -]+$/.test(s) && !s.includes('..');
 const id = s => createHash('sha256').update(s).digest('hex').slice(0, 24);
 
 // Only Git's object database is read. No checkout hooks, repository programs, or dependencies run.
@@ -31,6 +31,11 @@ export function scanRepository(root, { ref = 'HEAD', repository = 'local-reposit
     if (!match) throw new Error('Unsupported Git tree entry');
     return { mode: match[1], type: match[2], hash: match[3], size: Number(match[4]), file: match[5] };
   });
+  return scanSnapshot({tree, commit, branch, repository, read: entry => git(['cat-file', 'blob', entry.hash]).toString('utf8'), limits});
+}
+export function scanSnapshot({tree, commit, branch, repository, read, limits = {}}) {
+  const caps = {...LIMITS, ...limits}, start = performance.now();
+  const checkTime = () => { if (performance.now()-start > caps.milliseconds) throw new Error('Scan time limit exceeded'); };
   if (tree.length > caps.files) throw new Error('Repository file count limit exceeded');
   if (tree.reduce((n, x) => n + (x.size || 0), 0) > caps.bytes) throw new Error('Repository size limit exceeded');
   const supported = tree.filter(x => x.mode === '100644' || x.mode === '100755').filter(x => extensions.includes(path.posix.extname(x.file)) && !excluded.test(x.file) && safeName(x.file));
@@ -44,7 +49,7 @@ export function scanRepository(root, { ref = 'HEAD', repository = 'local-reposit
   const evidence = (file, source, node) => ({ repository, branch, commit, file, startLine: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, endLine: source.getLineAndCharacterOfPosition(node.end - 1).line + 1 });
   for (const entry of supported) {
     checkTime();
-    const text = git(['cat-file', 'blob', entry.hash]).toString('utf8');
+    const text = read(entry);
     const source = ts.createSourceFile(entry.file, text, ts.ScriptTarget.Latest, true);
     if (source.parseDiagnostics.length) throw new Error('A supported source file could not be parsed');
     const sourceNode = nodes.find(n => n.id === id(entry.file));

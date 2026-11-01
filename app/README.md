@@ -2,6 +2,45 @@
 
 Local development only. The existing Site is untouched. This includes extraction and the first human-editing workflow, not the hosted product. No accounts, GitHub credentials, payment service or paid infrastructure are needed.
 
+## Architecture overview
+
+```mermaid
+flowchart LR
+  subgraph Hosted["Hosted customer app (Vercel)"]
+    Browser["Customer browser"] --> Static["Built web app<br/>hosted-client.js"]
+    Static --> Auth["Supabase Auth<br/>browser session"]
+    Static --> GHRoute["/api/github"]
+    GHRoute --> GHHandler["github-api.js<br/>auth and access checks"]
+    GHHandler --> GitHub["GitHub App / GitHub API"]
+    GHHandler --> ConnStore["Supabase RPC<br/>encrypted GitHub connection"]
+    GHHandler --> HostedScan["hosted-scan.js"]
+    HostedScan --> GitHub
+    HostedScan --> Scanner["scanner.js<br/>scanSnapshot"]
+    HostedScan --> ScanStore["Supabase RPC<br/>encrypted scan evidence"]
+    HostedScan --> Overview["Grouped overview<br/>returned to browser"]
+    Overview --> Browser
+    Auth -. "credentials and sessions" .-> Browser
+    Disabled["Not enabled yet:<br/>paid details and editing"]
+  end
+
+  subgraph Local["Local developer workflows"]
+    Repo["Authorized Git repository"] --> CLI["npm run scan<br/>src/cli.js"]
+    CLI --> LocalScanner["scanner.js<br/>Git objects + scanSnapshot"]
+    LocalScanner --> Findings["scan.json"]
+    LocalScanner --> MapRender["map.js"]
+    MapRender --> Map["map.html"]
+    Map --> Editor["editor-client.js"]
+    Editor --> Overlay["overlays.js"]
+    Overlay --> EditFile["Separate edits JSON"]
+
+    Start["npm start"] --> LocalServer["server.js<br/>local account and GitHub shell"]
+    LocalServer --> Providers["providers.js"]
+    Providers --> Services["Supabase Auth / GitHub API"]
+  end
+```
+
+The hosted app and local developer tools are separate. The hosted scanner reuses the source-analysis logic but returns a grouped preview; the local CLI produces protected full findings and a standalone editable map. Neither source findings nor human edits are mixed with one another.
+
 ## Customer account and GitHub entry flow
 
 Run `npm start` and open http://localhost:4174. This new customer shell is separate from the offline developer editor. It implements the managed-auth and GitHub App adapters, but live registration and authorization need configuration. See [ACCOUNTS_SETUP.md](ACCOUNTS_SETUP.md). Without configuration it reports setup is needed; it does not create demo accounts or pretend a scan ran.
